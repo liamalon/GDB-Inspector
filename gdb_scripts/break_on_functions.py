@@ -38,7 +38,10 @@ class BreakInfo(dict):
 
     def __iter__(self):
         """Make list(self) return a list of addresses."""
-        return (int(val.address, 16) for val in self.values())
+        print("here")
+        for val in self.values():
+            yield int(val.address, 16)
+
 
     def _address_set(self):
         return {int(val.address, 16) for val in self.values()}
@@ -84,14 +87,14 @@ class BreakOnFunctions(gdb.Command):
             print("Error in on_stop:", e)
 
         # Safe resume (deferred)
-        gdb.post_event(lambda: gdb.execute("continue", to_string=True))
+        # gdb.post_event(lambda: gdb.execute("continue", to_string=True))
     
     def set_break_addresses(self, proc_functions_address: list[int] = None) -> None:
         """
         Because this is for use of another gdb plugin, we support communication through 
         gdb shared variables, here it is `gdb.proc_functions_address`.
         """
-        self.proc_functions_address = proc_functions_address or gdb.proc_functions_address
+        self.proc_functions_address = proc_functions_address
         print(f"[*] Setting breakpoints at {len(self.proc_functions_address)} addresses.")
 
     def get_break_info(self) -> BreakInfo:
@@ -107,10 +110,16 @@ class BreakOnFunctions(gdb.Command):
         gdb.events.stop.connect(self.on_stop)
 
     def start(self, timeout: float = None) -> None:
+        if self.running:
+            print("[-] Breaking already running.")
+            return
+        
         self.running = True
         self.break_info = {}
-        # stop_thread = threading.Thread(target=self.stop, args=(timeout,))
-        # stop_thread.start()
+    
+        # if timeout:
+        #     delay_stop_thread = threading.Thread(target=self.stop, args=(timeout,))
+        #     delay_stop_thread.start()
 
         self.break_functions()
         gdb.execute("continue")
@@ -161,10 +170,6 @@ class BreakOnFunctions(gdb.Command):
             if len(args) < 2:
                 print("[#] Missing timeout, it will wait for a stop from the client.")
             
-            if self.running:
-                print("[-] Breaking already running.")
-                return
-
             self.debug = len(args) > 2 and args[2].lower() == "debug"
             self.start(timeout)
 

@@ -14,6 +14,7 @@ def setup_sock():
         sock.close()
 
 def trigger_recv(sock: socket.socket):
+    print(f"Sending {UNIQUE_STRING=}")
     sock.send(UNIQUE_STRING.encode())
     recvd = sock.recv(1024)
     print(f"{recvd.decode()=}")
