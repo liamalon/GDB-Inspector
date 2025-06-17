@@ -37,6 +37,10 @@ class TrackFlow(gdb.Command):
             self.run_trigger.run_script(trigger_path)
             self.break_on_functions.stop()
             
+            print(f"[*] Narrowing down from {len(self.break_on_functions.proc_functions_address)} to {len(current_break_info)}")
+
+            # we want to put breakpoints only on what was hit!
+            self.break_on_functions.set_break_addresses(current_break_info)
             
             prev_break_info = current_break_info
 

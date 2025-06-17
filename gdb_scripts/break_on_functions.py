@@ -16,9 +16,9 @@ class TraceCallInfo:
     address: str
     count: int = 1
 
-class BreakAddresses(dict):
+class BreakInfo(dict):
     def __contains__(self, key):
-        """Check if a TraceCallInfo or address string is in the dict by address."""
+        """Check if a BreakInfo or address string is in the dict by address."""
         if isinstance(key, TraceCallInfo):
             key_address = key.address
         else:
@@ -26,7 +26,7 @@ class BreakAddresses(dict):
         return any(val.address == key_address for val in self.values())
 
     def __eq__(self, other):
-        if not isinstance(other, BreakAddresses):
+        if not isinstance(other, BreakInfo):
             return NotImplemented
         return self._address_set() == other._address_set()
 
@@ -38,10 +38,10 @@ class BreakAddresses(dict):
 
     def __iter__(self):
         """Make list(self) return a list of addresses."""
-        return (val.address for val in self.values())
+        return (int(val.address, 16) for val in self.values())
 
     def _address_set(self):
-        return {val.address for val in self.values()}
+        return {int(val.address, 16) for val in self.values()}
 
 class BreakOnFunctions(gdb.Command):
     """Set breakpoints on all detected function entry points."""
@@ -51,6 +51,7 @@ class BreakOnFunctions(gdb.Command):
         self.proc_functions_address = self._get_initial_functions()
         self.break_info = BreakInfo()
         self.lock = threading.Lock()
+        self.debug = False
         super().__init__("break_on_functions", gdb.COMMAND_USER)
 
     def _get_initial_functions(self):
