@@ -135,14 +135,33 @@ class FunctionFinder:
     def get_function_starts(self, mem: bytes, base_addr: int, md: capstone.Cs) -> list[int]:
         return self.find_function_starts(mem, base_addr, md)
 
+    def get_all_function_symbols(self) -> set[int]:
+        output = gdb.execute("info functions", to_string=True)
+        symbols = set()
+        for line in output.splitlines():
+            line = line.strip()
+            if line.startswith("0x"):
+                addr_str, *rest = line.split()
+                name = " ".join(rest)
+                try:
+                    addr = int(addr_str, 16)
+                    symbols.add(addr)
+                except ValueError:
+                    continue
+        return symbols
+
     def get_functions_addresses(self) -> set[int]:
         mappings = self.get_proc_mappings()
         md = self.get_disassembler(self.proc_arch)
         
         functions_addrs = set()
+        # for non-symbols functions
         for mapping in mappings:
             if mapping.perms == "r-xp":
                 mem = gdb.selected_inferior().read_memory(mapping.start_addr, mapping.size)
                 functions_starts = self.get_function_starts(mem, mapping.start_addr, md)
                 functions_addrs.update(functions_starts)
+
+        functions_addrs.update(self.get_all_function_symbols())
+
         return functions_addrs

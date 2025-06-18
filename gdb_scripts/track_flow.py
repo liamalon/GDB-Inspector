@@ -24,6 +24,19 @@ class TrackFlow(gdb.Command):
         print(f"[*] Previous call info: {previous_call_info}")
         return previous_call_info != current_call_info
 
+    def run_script(self, trigger_path: str) -> None:
+        if not os.path.isfile(trigger_path):
+            print(f"[!] File not found: {trigger_path}")
+            return
+        
+        while not self.break_on_functions.can_run_script:
+            time.sleep(0.1)
+
+        self.run_trigger.run_script(trigger_path)
+
+        self.break_on_functions.can_run_script = False
+
+
     def narrow_down(self, trigger_path: str):
         stuck_narrow_cnt = 0
         current_break_info = BreakInfo()
@@ -35,6 +48,9 @@ class TrackFlow(gdb.Command):
             else: 
                 stuck_narrow_cnt += 1
             print(f"[*] Stuck narrow count: {stuck_narrow_cnt}")
+
+            script_thread = threading.Thread(target=self.run_script, args=(trigger_path,))
+            script_thread.start()
 
             self.break_on_functions.start()
             self.run_trigger.run_script(trigger_path)
@@ -59,8 +75,16 @@ class TrackFlow(gdb.Command):
             print("[!] Usage: track_flow /path/to/script.py")
             return
         
-        trigger_path = args[0]
-        self.narrow_down(trigger_path)
+        cmd = args[0]
+
+        if len(args) < 2:
+            print("[#] Missing trigger path")
+
+        trigger_path = args[1]
+
+        if cmd == "narrow":
+            
+            self.narrow_down(trigger_path)
 
         
 # Register the command

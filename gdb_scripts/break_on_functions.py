@@ -54,7 +54,8 @@ class BreakOnFunctions(gdb.Command):
         self.proc_functions_address = self._get_initial_functions()
         self.break_info = BreakInfo()
         self.lock = threading.Lock()
-        self.debug = False
+        self.can_run_script = False
+        self.debug = True
         super().__init__("break_on_functions", gdb.COMMAND_USER)
 
     def _get_initial_functions(self):
@@ -88,6 +89,7 @@ class BreakOnFunctions(gdb.Command):
 
         # Safe resume (deferred)
         # gdb.post_event(lambda: gdb.execute("continue", to_string=True))
+        gdb.execute("continue", to_string=True)
     
     def set_break_addresses(self, proc_functions_address: list[int] = None) -> None:
         """
@@ -107,7 +109,8 @@ class BreakOnFunctions(gdb.Command):
             print(f"[*] Breakpoint set at 0x{addr:x}")
 
         print(f"[+] Set {len(self.proc_functions_address)} breakpoints.")
-        gdb.events.stop.connect(self.on_stop)
+        
+        
 
     def start(self, timeout: float = None) -> None:
         if self.running:
@@ -116,12 +119,16 @@ class BreakOnFunctions(gdb.Command):
         
         self.running = True
         self.break_info = {}
+        
+        gdb.events.stop.connect(self.on_stop)
+        self.break_functions()
+        
+        self.can_run_script = True
     
         # if timeout:
-        #     delay_stop_thread = threading.Thread(target=self.stop, args=(timeout,))
-        #     delay_stop_thread.start()
+        stop_thread = threading.Thread(target=self.stop, args=(timeout,))
+        stop_thread.start()
 
-        self.break_functions()
         gdb.execute("continue")
 
     def stop(self, timeout: float = None) -> None:
@@ -133,6 +140,9 @@ class BreakOnFunctions(gdb.Command):
             start_time = time.time()
             while time.time() - start_time < timeout:
                 time.sleep(0.2)
+        else:
+            while self.can_run_script:
+                time.sleep(0.1)
         
         gdb.events.stop.disconnect(self.on_stop)
         
