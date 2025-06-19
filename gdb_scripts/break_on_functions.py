@@ -56,6 +56,7 @@ class BreakOnFunctions(gdb.Command):
         self.lock = threading.Lock()
         self.can_run_script = False
         self.debug = True
+        self.on_stop_function = self.on_stop
         super().__init__("break_on_functions", gdb.COMMAND_USER)
 
     def _get_initial_functions(self):
@@ -120,7 +121,7 @@ class BreakOnFunctions(gdb.Command):
         self.running = True
         self.break_info = {}
         
-        gdb.events.stop.connect(self.on_stop)
+        gdb.events.stop.connect(self.on_stop_function)
         self.break_functions()
         
         self.can_run_script = True
@@ -144,14 +145,14 @@ class BreakOnFunctions(gdb.Command):
             while self.can_run_script:
                 time.sleep(0.1)
         
-        gdb.events.stop.disconnect(self.on_stop)
+        for bp in gdb.breakpoints():
+            bp.delete()
+        
+        gdb.events.stop.disconnect(self.on_stop_function)
         
         # give some time for the breakpoints to exit
         # this is not perfect but will do for now
-        time.sleep(1)
-
-        for bp in gdb.breakpoints():
-            bp.delete()
+        time.sleep(0.2)
 
         print("[+] Removed breakpoints.")
         print("[+] Stopping trace.")
