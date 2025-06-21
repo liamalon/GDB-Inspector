@@ -142,19 +142,47 @@ class TrackFlow(gdb.Command):
         print("joined")
 
         self.print_call_flows()
+    
+    def find_marker_on_stop(self, event):
+        if not isinstance(event, gdb.BreakpointEvent):
+            return
+    
+        if "recv" in gdb.newest_frame().name():        
+            # TODO: add code here
+            import ipdb; ipdb.set_trace()
+
+        # Resume execution
+        gdb.execute("continue")
+
+
+    def find_marker(self, trigger_path: str, maker: str):
+        # wait for `break_on_functions.stop` to finish 
+        while self.break_on_functions.running:
+            time.sleep(0.01)
+
+        self.break_on_functions.on_stop_function = self.find_marker_on_stop
+
+        script_thread = threading.Thread(target=self.run_script, args=(trigger_path,))
+        script_thread.start()
+
+        self.break_on_functions.start()
+            
+        # wait for the script to finish
+        script_thread.join()
 
 
     def invoke(self, arg, from_tty):
         args = gdb.string_to_argv(arg)
 
         if not args:
-            print("[!] Usage: track_flow /path/to/script.py")
+            print("[!] Usage: track_flow narrow </path/to/script.py> | get-flow </path/to/script.py> | find-marker </path/to/script.py> <marker_string> ")
             return
         
         cmd = args[0]
 
         if len(args) < 2:
             print("[#] Missing trigger path")
+            return
 
         trigger_path = args[1]
 
@@ -163,6 +191,14 @@ class TrackFlow(gdb.Command):
 
         elif cmd == "get-flow":
             self.get_flow(trigger_path)
+            
+        elif cmd == "find-marker":
+            if len(args) < 3:
+                print("[#] Missing marker string")
+                return
+            
+            marker = args[2] 
+            self.find_marker(trigger_path, marker)
         
         else:
             print(f"Command: {cmd} is an Unknown command")
